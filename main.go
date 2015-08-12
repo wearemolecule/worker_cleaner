@@ -142,9 +142,10 @@ func getWorkersFromRedis(c *redis.Client) []string {
 
 func getRedisClient(useSentinel bool) *redis.Client {
 	if useSentinel {
+		addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_SENTINEL_SERVICE_HOST"), os.Getenv("REDIS_SENTINEL_SERVICE_PORT"))
 		return redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:    "mymaster",
-			SentinelAddrs: []string{""},
+			SentinelAddrs: []string{addr},
 		})
 	} else {
 		return redis.NewClient(&redis.Options{
