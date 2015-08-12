@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -31,7 +30,7 @@ func main() {
 	kubeClient := getKubernetesClient()
 	redisClient := getRedisClient(true)
 
-	log.Print("Polling worker list every 5 min")
+	glog.Info("Polling worker list every 5 min")
 	for {
 
 		runningPods := getLivingWorkers(kubeClient, namespace)
@@ -134,7 +133,7 @@ func getLivingWorkers(c *client.Client, namespace string) []string {
 func getWorkersFromRedis(c *redis.Client) []string {
 	workers, err := c.SMembers("resque:workers").Result()
 	if err != nil {
-		log.Fatal("Failed to connect to Redis")
+		glog.Fatal("Failed to connect to Redis")
 	}
 
 	return workers
