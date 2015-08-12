@@ -65,12 +65,14 @@ func requeueStuckJob(c *redis.Client, job []byte) {
 }
 
 func removeDeadWorker(c *redis.Client, worker string) {
-	job, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
+	_, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
 	if err != nil {
-		glog.Warningf("Could not fetch job for obj: %s", err)
-		return
-	}
-	if len(job) != 0 {
+		// if error is redis: nil we just ignore
+		if err.Error() != "redis: nil" {
+			glog.Warningf("Could not fetch job for obj: %s", err)
+			return
+		}
+	} else {
 		// requeueStuckJob(c, job)
 		glog.Warning("Job not empty for worker, skipping removal (not implemented)")
 		return
