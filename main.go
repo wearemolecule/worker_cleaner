@@ -68,7 +68,7 @@ func removeDeadWorker(c *redis.Client, worker string) {
 	_, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
 	if err != nil {
 		// if error is redis: nil we just ignore
-		if err.Error() != "redis: nil" {
+		if err != redis.Nil {
 			glog.Warningf("Could not fetch job for obj: %s", err)
 			return
 		}
