@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -30,7 +31,7 @@ func main() {
 	kubeClient := getKubernetesClient()
 	redisClient := getRedisClient(true)
 
-	log.Print("Polling worker list every 1min")
+	log.Print("Polling worker list every 5 min")
 	for {
 
 		runningPods := getLivingWorkers(kubeClient, namespace)
@@ -42,20 +43,52 @@ func main() {
 			removeDeadWorker(redisClient, dead)
 		}
 
-		time.Sleep(1 * time.Minute)
+		time.Sleep(5 * time.Minute)
+	}
+}
+
+type resqueJob struct {
+	Queue   string `json:queue`
+	Payload json.RawMessage
+}
+
+func newResqueJob(data []byte) (resqueJob, error) {
+	var j resqueJob
+	err := json.Unmarshal(data, &j)
+	return j, err
+}
+
+func requeueStuckJob(c *redis.Client, job []byte) {
+	_, err := newResqueJob(job)
+	if err != nil {
+		glog.Warning("Could not deserialize job")
 	}
 }
 
 func removeDeadWorker(c *redis.Client, worker string) {
-	c.SRem(workersKey, worker)
-	// TODO: Check this key for any open jobs
-	c.Del(fmt.Sprintf("%s:%s", workerKey, worker))
-	c.Del(fmt.Sprintf("%s:%s:started", workerKey, worker))
-	c.Del(fmt.Sprintf("%s:%s:shutdown", workerKey, worker))
+	job, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
+	if err != nil {
+		glog.Warningf("Could not fetch job for obj: %s", err)
+		return
+	}
+	if len(job) != 0 {
+		// requeueStuckJob(c, job)
+		glog.Warning("Job not empty for worker, skipping removal (not implemented)")
+		return
+	}
 
-	// delete stats
-	c.Del(fmt.Sprintf("%s:%s", statProcessedKey, worker))
-	c.Del(fmt.Sprintf("%s:%s", statFailedKey, worker))
+	c.Pipelined(func(pipe *redis.Pipeline) error {
+		pipe.SRem(workersKey, worker)
+		pipe.Del(fmt.Sprintf("%s:%s", workerKey, worker))
+		pipe.Del(fmt.Sprintf("%s:%s:started", workerKey, worker))
+		pipe.Del(fmt.Sprintf("%s:%s:shutdown", workerKey, worker))
+
+		// delete stats
+		pipe.Del(fmt.Sprintf("%s:%s", statProcessedKey, worker))
+		pipe.Del(fmt.Sprintf("%s:%s", statFailedKey, worker))
+
+		return nil
+	})
 }
 
 func getDeadWorkers(running []string, listedWorkers []string) []string {
