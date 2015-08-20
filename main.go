@@ -57,15 +57,16 @@ func newResqueJob(data []byte) (resqueJob, error) {
 	return j, err
 }
 
-func requeueStuckJob(c *redis.Client, job []byte) {
-	_, err := newResqueJob(job)
+func requeueStuckJob(jobBytes []byte) {
+	job, err := newResqueJob(jobBytes)
 	if err != nil {
 		glog.Warning("Could not deserialize job")
 	}
+	glog.Infof("Job found on queue %s: %s", job.Queue, job.Payload)
 }
 
 func removeDeadWorker(c *redis.Client, worker string) {
-	_, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
+	bytes, err := c.Get(fmt.Sprintf("%s:%s", workerKey, worker)).Bytes()
 	if err != nil {
 		// if error is redis: nil we just ignore
 		if err != redis.Nil {
@@ -73,7 +74,7 @@ func removeDeadWorker(c *redis.Client, worker string) {
 			return
 		}
 	} else {
-		// requeueStuckJob(c, job)
+		requeueStuckJob(bytes)
 		glog.Warning("Job not empty for worker, skipping removal (not implemented)")
 		return
 	}
