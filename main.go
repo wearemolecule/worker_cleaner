@@ -48,16 +48,16 @@ func main() {
 }
 
 type resqueJob struct {
-	queue   string `json:queue`
-	payload json.RawMessage
+	Queue   string `json:queue`
+	Payload json.RawMessage
 }
 
-func (j *resqueJob) queueKey() string {
-	return fmt.Sprintf("resque:queue:%s", j.queue)
+func (j *resqueJob) QueueKey() string {
+	return fmt.Sprintf("resque:queue:%s", j.Queue)
 }
 
-func (j *resqueJob) payloadAsJson() ([]byte, error) {
-	return json.Marshal(j)
+func (j *resqueJob) PayloadAsJson() ([]byte, error) {
+	return json.Marshal(j.Payload)
 }
 
 func newResqueJob(data []byte) (resqueJob, error) {
@@ -73,14 +73,14 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 		glog.Warning("Could not deserialize job")
 		return err
 	}
-	glog.Infof("Job found on queue %s: %s", job.queue, job.payload)
-	c.SAdd("resque:queues", job.queue)
-	json, err := job.payloadAsJson()
+	glog.Infof("Job found on queue %s: %s", job.Queue, job.Payload)
+	c.SAdd("resque:queues", job.Queue)
+	json, err := job.PayloadAsJson()
 	if err != nil {
 		glog.Warning("Could not serialize job payload")
 		return err
 	}
-	rowsInserted, err := c.RPush(job.queueKey(), string(json)).Result()
+	rowsInserted, err := c.RPush(job.QueueKey(), string(json)).Result()
 	if err != nil {
 		glog.Warningf("Failed to insert job: %s", err)
 		return err
