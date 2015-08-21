@@ -76,6 +76,7 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 		glog.Warning("Could not serialize job payload")
 		return err
 	}
+	glog.Infof("Inserting %s to %s", string(json[:]), job.QueueKey())
 	rowsInserted, err := c.RPush(job.QueueKey(), string(json[:])).Result()
 	if err != nil {
 		glog.Warningf("Failed to insert job: %s", err)
