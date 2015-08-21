@@ -81,6 +81,7 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 		glog.Warningf("Failed to insert job: %s", err)
 		return err
 	}
+	glog.Infof("Inserted %d rows", rowsInserted)
 	if rowsInserted != 1 {
 		err = errors.New(fmt.Sprintf("Failed to insert job: inserted %d", rowsInserted))
 	}
@@ -100,7 +101,9 @@ func removeDeadWorker(c *redis.Client, worker string) {
 		err = requeueStuckJob(bytes, c)
 		if err != nil {
 			glog.Warningf("Failed to requeue job: %s", err)
+			return
 		}
+		// Else continue to cleaning up the worker
 		return
 	}
 
