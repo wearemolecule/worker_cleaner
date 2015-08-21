@@ -80,13 +80,14 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 		glog.Warning("Could not serialize job payload")
 		return err
 	}
+	glog.Infof("Trying to insert %s on %s", string(json), job.QueueKey())
 	rowsInserted, err := c.RPush(job.QueueKey(), string(json)).Result()
 	if err != nil {
 		glog.Warningf("Failed to insert job: %s", err)
 		return err
 	}
 	if rowsInserted != 1 {
-		err = errors.New("Failed to insert job")
+		err = errors.New(fmt.Sprintf("Failed to insert job: inserted %s", rowsInserted))
 	}
 
 	return err
@@ -103,7 +104,7 @@ func removeDeadWorker(c *redis.Client, worker string) {
 	} else {
 		err = requeueStuckJob(bytes, c)
 		if err != nil {
-			glog.Warning("Failed to requeue job")
+			glog.Warningf("Failed to requeue job: %s", err)
 		}
 		return
 	}
