@@ -56,10 +56,6 @@ func (j *resqueJob) QueueKey() string {
 	return fmt.Sprintf("resque:queue:%s", j.Queue)
 }
 
-func (j *resqueJob) PayloadAsJson() ([]byte, error) {
-	return json.Marshal(j.Payload)
-}
-
 func newResqueJob(data []byte) (resqueJob, error) {
 	var j resqueJob
 	err := json.Unmarshal(data, &j)
@@ -75,19 +71,18 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 	}
 	glog.Infof("Job found on queue %s: %s", job.Queue, job.Payload)
 	c.SAdd("resque:queues", job.Queue)
-	json, err := job.PayloadAsJson()
+	json, err := job.Payload.MarshalJSON()
 	if err != nil {
 		glog.Warning("Could not serialize job payload")
 		return err
 	}
-	glog.Infof("Trying to insert %s on %s", string(json), job.QueueKey())
-	rowsInserted, err := c.RPush(job.QueueKey(), string(json)).Result()
+	rowsInserted, err := c.RPush(job.QueueKey(), string(json[:])).Result()
 	if err != nil {
 		glog.Warningf("Failed to insert job: %s", err)
 		return err
 	}
 	if rowsInserted != 1 {
-		err = errors.New(fmt.Sprintf("Failed to insert job: inserted %s", rowsInserted))
+		err = errors.New(fmt.Sprintf("Failed to insert job: inserted %d", rowsInserted))
 	}
 
 	return err
