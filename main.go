@@ -3,7 +3,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,15 +75,10 @@ func requeueStuckJob(jobBytes []byte, c *redis.Client) error {
 		glog.Warning("Could not serialize job payload")
 		return err
 	}
-	glog.Infof("Inserting %s to %s", string(json[:]), job.QueueKey())
-	rowsInserted, err := c.RPush(job.QueueKey(), string(json[:])).Result()
+	err = c.RPush(job.QueueKey(), string(json[:])).Err()
 	if err != nil {
 		glog.Warningf("Failed to insert job: %s", err)
 		return err
-	}
-	glog.Infof("Inserted %d rows", rowsInserted)
-	if rowsInserted != 1 {
-		err = errors.New(fmt.Sprintf("Failed to insert job: inserted %d", rowsInserted))
 	}
 
 	return err
@@ -105,7 +99,6 @@ func removeDeadWorker(c *redis.Client, worker string) {
 			return
 		}
 		// Else continue to cleaning up the worker
-		return
 	}
 
 	c.Pipelined(func(pipe *redis.Pipeline) error {
