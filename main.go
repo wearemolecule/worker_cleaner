@@ -33,11 +33,13 @@ func main() {
 
 	glog.Info("Polling worker list every 5 min")
 	for {
-
 		runningPods := getLivingWorkers(kubeClient, namespace)
+		glog.Infof("Got running pods %s", runningPods)
 		redisWorkers := getWorkersFromRedis(redisClient)
+		glog.Infof("Got redis workers %s", redisWorkers)
 
 		deadWorkers := getDeadWorkers(runningPods, redisWorkers)
+		glog.Infof("Removing dead workers %s", deadWorkers)
 
 		for _, dead := range deadWorkers {
 			removeDeadWorker(redisClient, dead)
@@ -140,7 +142,7 @@ func getLivingWorkers(c *kubeclient.Client, namespace string) []string {
 	ctx := context.TODO()
 	pods, err := c.PodList(ctx, namespace, "role=worker,app=vapor")
 	if err != nil {
-		glog.Fatal("Failed to get pods")
+		glog.Fatal("Failed to get pods", err)
 	}
 
 	podNames := make([]string, len(pods))

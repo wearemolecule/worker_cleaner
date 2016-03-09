@@ -1,14 +1,7 @@
-FROM golang:1.5
+FROM alpine
 
-# Godep for vendoring
-RUN go get github.com/tools/godep
-ENV APP_DIR $GOPATH/src/github.com/wearemolecule/worker_cleaner
-RUN mkdir /opt/app
+RUN mkdir -p /opt/
 
-# Set the entrypoint
-ENTRYPOINT ["/opt/app/worker_cleaner"]
-ADD . $APP_DIR
+COPY worker_cleaner /opt/worker_cleaner
 
-# Compile the binary and statically link
-RUN cd $APP_DIR && godep restore
-RUN cd $APP_DIR && go build -o /opt/app/worker_cleaner
+ENTRYPOINT ["/opt/worker_cleaner"]
