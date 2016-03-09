@@ -1,0 +1,27 @@
+hash: bc0ded62a696e4f66ba7890f585fe7a8052c956741d6343a3d9f25e49aae233c
+updated: 2016-03-09T12:21:25.943784146-06:00
+imports:
+- name: github.com/golang/glog
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+- name: github.com/wearemolecule/kubeclient
+  version: cfc891cea9d1409ed57a96e2b6680a169a72c8e2
+- name: golang.org/x/build
+  version: 59077b03e8bc6f8b46181f2fd117c8fa4be1b3ce
+  subpackages:
+  - kubernetes/api
+- name: golang.org/x/net
+  version: 3e5cd1ed149001198e582f9d3f5bfd564cde2896
+  subpackages:
+  - context
+  - context/ctxhttp
+- name: gopkg.in/bsm/ratelimit.v1
+  version: db14e161995a5177acef654cb0dd785e8ee8bc22
+- name: gopkg.in/bufio.v1
+  version: 567b2bfa514e796916c4747494d6ff5132a1dfce
+- name: gopkg.in/redis.v3
+  version: fc28d0fa245616be3aa97e162086e71c75c92f6b
+  subpackages:
+  - internal/consistenthash
+- name: speter.net/go/exp/math/dec/inf
+  version: 42ca6cd68aa922bc3f32f1e056e61b65945d9ad7
+devImports: []

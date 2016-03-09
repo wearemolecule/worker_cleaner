@@ -4,15 +4,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/golang/glog"
+	"github.com/wearemolecule/kubeclient"
+	"golang.org/x/net/context"
 	"gopkg.in/redis.v3"
 )
 
@@ -27,7 +25,10 @@ func main() {
 	glog.Info("Kubernetes-Resque Worker Cleanup Service")
 
 	namespace := os.Getenv("NAMESPACE")
-	kubeClient := getKubernetesClient()
+	kubeClient, err := kubeclient.GetKubeClientFromEnv()
+	if err != nil {
+		glog.Fatalf("Couldn't connect to kubernetes: %s", err)
+	}
 	redisClient := getRedisClient(true)
 
 	glog.Info("Polling worker list every 5 min")
@@ -47,7 +48,7 @@ func main() {
 }
 
 type resqueJob struct {
-	Queue   string `json:queue`
+	Queue   string `json:"queue"`
 	Payload json.RawMessage
 }
 
@@ -135,21 +136,15 @@ func getDeadWorkers(running []string, listedWorkers []string) []string {
 	return diff
 }
 
-func getLivingWorkers(c *client.Client, namespace string) []string {
-	selector := "role=worker,app=vapor"
-	labels, err := labels.Parse(selector)
-	if err != nil {
-		glog.Fatalf("Failed to parse selector %q: %v", selector, err)
-	}
-
-	pods, err := c.Pods(namespace).List(labels, fields.Everything())
+func getLivingWorkers(c *kubeclient.Client, namespace string) []string {
+	ctx := context.TODO()
+	pods, err := c.PodList(ctx, namespace, "role=worker,app=vapor")
 	if err != nil {
 		glog.Fatal("Failed to get pods")
 	}
 
-	podItems := pods.Items
-	podNames := make([]string, len(podItems))
-	for i, pod := range podItems {
+	podNames := make([]string, len(pods))
+	for i, pod := range pods {
 		podNames[i] = pod.Name
 	}
 	return podNames
@@ -176,29 +171,4 @@ func getRedisClient(useSentinel bool) *redis.Client {
 			Addr: "localhost:6379",
 		})
 	}
-}
-
-func getKubernetesClient() *client.Client {
-	kubernetesService := os.Getenv("KUBERNETES_SERVICE_HOST")
-	if kubernetesService == "" {
-		glog.Fatalf("Please specify the Kubernetes server")
-	}
-	apiServer := fmt.Sprintf("https://%s:%s", kubernetesService, os.Getenv("KUBERNETES_SERVICE_PORT"))
-
-	token, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
-	if err != nil {
-		glog.Fatalf("No service account token found")
-	}
-
-	config := client.Config{
-		Host:        apiServer,
-		BearerToken: string(token),
-		Insecure:    true,
-	}
-
-	c, err := client.New(&config)
-	if err != nil {
-		glog.Fatalf("Failed to make client: %v", err)
-	}
-	return c
 }
