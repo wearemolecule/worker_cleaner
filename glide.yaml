@@ -1,10 +1,5 @@
 package: github.com/wearemolecule/worker_cleaner
 import:
 - package: github.com/golang/glog
-  version: 44145f04b68cf362d9c4df2182967c2275eaefed
-- package: gopkg.in/redis.v3
-  version: fc28d0fa245616be3aa97e162086e71c75c92f6b
+- package: gopkg.in/redis.v4
 - package: github.com/wearemolecule/kubeclient
-- package: golang.org/x/net
-  subpackages:
-  - context

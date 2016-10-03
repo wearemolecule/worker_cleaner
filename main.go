@@ -2,7 +2,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -10,8 +12,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/wearemolecule/kubeclient"
-	"golang.org/x/net/context"
-	"gopkg.in/redis.v3"
+	"gopkg.in/redis.v4"
 )
 
 const (
@@ -20,6 +21,10 @@ const (
 	statProcessedKey = "resque:stat:processed"
 	statFailedKey    = "resque:stat:failed"
 )
+
+func init() {
+	flag.Parse()
+}
 
 func main() {
 	glog.Info("Kubernetes-Resque Worker Cleanup Service")

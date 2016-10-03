@@ -1,27 +1,42 @@
-hash: bc0ded62a696e4f66ba7890f585fe7a8052c956741d6343a3d9f25e49aae233c
-updated: 2016-03-09T12:21:25.943784146-06:00
+hash: dbbc6888d2795f580187a53b2f89803f752a3bc35378f6b77bf533c025056c62
+updated: 2016-10-03T15:14:18.20130519-05:00
 imports:
 - name: github.com/golang/glog
-  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/wearemolecule/kubeclient
-  version: cfc891cea9d1409ed57a96e2b6680a169a72c8e2
+  version: 8e465a3c3da9b46782c14da57c141ab2a45ef467
 - name: golang.org/x/build
-  version: 59077b03e8bc6f8b46181f2fd117c8fa4be1b3ce
+  version: 46ecb43b4ee854020e69a054dc685e236ab575fd
   subpackages:
   - kubernetes/api
 - name: golang.org/x/net
-  version: 3e5cd1ed149001198e582f9d3f5bfd564cde2896
+  version: 0f2be02c5ddfa7c7936000ad519b04c6c795eab3
   subpackages:
   - context
   - context/ctxhttp
 - name: gopkg.in/bsm/ratelimit.v1
   version: db14e161995a5177acef654cb0dd785e8ee8bc22
-- name: gopkg.in/bufio.v1
-  version: 567b2bfa514e796916c4747494d6ff5132a1dfce
-- name: gopkg.in/redis.v3
-  version: fc28d0fa245616be3aa97e162086e71c75c92f6b
+- name: gopkg.in/inf.v0
+  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+- name: gopkg.in/redis.v4
+  version: 5a272d03b960a72c61e5025a7d6e8da5d8815442
   subpackages:
+  - internal
   - internal/consistenthash
-- name: speter.net/go/exp/math/dec/inf
-  version: 42ca6cd68aa922bc3f32f1e056e61b65945d9ad7
-devImports: []
+  - internal/errors
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
+  subpackages:
+  - assert
