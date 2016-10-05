@@ -2,4 +2,7 @@ package: github.com/wearemolecule/worker_cleaner
 import:
 - package: github.com/golang/glog
 - package: gopkg.in/redis.v4
-- package: github.com/wearemolecule/kubeclient
+- package: k8s.io/kubernetes/
+  version: 8a29f67fc1a3c6e107ce0d70a8e643b99b765e0a
+- package: k8s.io/contrib/cluster-autoscaler/utils/kubernetes
+- package: github.com/pkg/errors
