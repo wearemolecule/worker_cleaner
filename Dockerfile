@@ -4,4 +4,4 @@ RUN mkdir -p /opt/
 
 COPY worker_cleaner /opt/worker_cleaner
 
-ENTRYPOINT ["/opt/worker_cleaner"]
+ENTRYPOINT ["/opt/worker_cleaner", "-logtostderr=true", "-v=0"]
