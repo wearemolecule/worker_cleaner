@@ -15,7 +15,13 @@ build:
 image: build
 	docker build -t $(IMAGE_TAG) .
 
+run: 
+	go run main.go --logtostderr=true -v=0
+
 .PHONY: clean
+
+gtest:
+	go test $$(glide nv)
 
 clean:
 	rm $(BIN)

@@ -18,12 +18,13 @@ import (
 )
 
 const (
-	resqueWorkerKey  = "resque:worker"
-	resqueWorkersKey = "resque:workers"
-	resqueQueueKey   = "resque:queue"
-	resqueQueuesKey  = "resque:queues"
-	statProcessedKey = "resque:stat:processed"
-	statFailedKey    = "resque:stat:failed"
+	resqueWorkerKey      = "resque:worker"
+	resqueWorkersKey     = "resque:workers"
+	resqueQueueKey       = "resque:queue"
+	resqueQueuesKey      = "resque:queues"
+	resqueFailedQueueKey = "resque:failed"
+	statProcessedKey     = "resque:stat:processed"
+	statFailedKey        = "resque:stat:failed"
 )
 
 var (
@@ -44,7 +45,7 @@ func init() {
 }
 
 func main() {
-	glog.V(1).Info("Kubernetes-Resque Worker Cleanup Service")
+	glog.V(0).Info("Kubernetes-Resque Worker Cleanup Service")
 
 	kubeClient, err := getKubernetesClient()
 	if err != nil {
@@ -85,6 +86,21 @@ func main() {
 		for _, redisWorker := range deadRedisWorkers {
 			if err := removeDeadRedisWorker(redisClient, redisWorker); err != nil {
 				glog.Warning(errors.Wrap(err, fmt.Sprintf("Unable to delete %s", redisWorker)).Error())
+			}
+		}
+
+		failedResqueJobs, err := getDirtyExitFailedJobsFromRedis(redisClient)
+		if err != nil {
+			glog.Warning(errors.Wrap(err, "Unable to get failed jobs from redis").Error())
+			continue
+		}
+
+		glog.V(2).Infof("Found %d failed resque jobs", len(failedResqueJobs))
+		glog.V(2).Info(failedResqueJobs)
+
+		for _, failedResqueJob := range failedResqueJobs {
+			if err := removeFailedResqueJob(redisClient, failedResqueJob); err != nil {
+				glog.Warning(errors.Wrap(err, "Unable to retry failed resque job").Error())
 			}
 		}
 
@@ -149,6 +165,36 @@ type redisWorker struct {
 	info string
 }
 
+func getDirtyExitFailedJobsFromRedis(redisClient *redis.Client) ([]redisWorker, error) {
+	failedJobsLength, err := redisClient.LLen(resqueFailedQueueKey).Result()
+	if err != nil {
+		return []redisWorker{}, errors.Wrap(err, "Failed to get failed resque jobs length")
+	}
+
+	failedJobs, err := redisClient.LRange(resqueFailedQueueKey, 0, failedJobsLength).Result()
+	if err != nil {
+		return []redisWorker{}, errors.Wrap(err, "Failed to get failed resque jobs")
+	}
+
+	var failedResqueJobs []redisWorker
+	for _, failedJob := range failedJobs {
+		var job failedResqueJob
+		if err := json.Unmarshal([]byte(failedJob), &job); err != nil {
+			continue
+		}
+
+		if job.Exception == "Resque::DirtyExit" {
+			failedResqueJobs = append(failedResqueJobs, redisWorker{failedJob, failedJob})
+		}
+	}
+
+	return failedResqueJobs, nil
+}
+
+type failedResqueJob struct {
+	Exception string `json:"exception"`
+}
+
 func redisWorkersNotInKubernetes(redisWorkers []redisWorker, kubernetesWorkers []string) []redisWorker {
 	var deadRedisWorkers []redisWorker
 
@@ -168,8 +214,6 @@ OUTER:
 
 func removeDeadRedisWorker(redisClient *redis.Client, redisWorker redisWorker) error {
 	bytes, err := redisClient.Get(fmt.Sprintf("%s:%s", resqueWorkerKey, redisWorker.info)).Bytes()
-	fmt.Println(string(bytes))
-	fmt.Println(err)
 	if err != nil && err != redis.Nil {
 		return errors.Wrap(err, fmt.Sprintf("Error getting %s from redis", redisWorker))
 	}
@@ -183,12 +227,25 @@ func removeDeadRedisWorker(redisClient *redis.Client, redisWorker redisWorker) e
 	}
 
 	redisClient.Pipelined(func(pipe *redis.Pipeline) error {
-		pipe.SRem(resqueWorkersKey, redisWorker)
-		pipe.Del(fmt.Sprintf("%s:%s", resqueWorkerKey, redisWorker))
-		pipe.Del(fmt.Sprintf("%s:%s:started", resqueWorkerKey, redisWorker))
-		pipe.Del(fmt.Sprintf("%s:%s:shutdown", resqueWorkerKey, redisWorker))
-		pipe.Del(fmt.Sprintf("%s:%s", statProcessedKey, redisWorker))
-		pipe.Del(fmt.Sprintf("%s:%s", statFailedKey, redisWorker))
+		pipe.SRem(resqueWorkersKey, redisWorker.info)
+		pipe.Del(fmt.Sprintf("%s:%s", resqueWorkerKey, redisWorker.info))
+		pipe.Del(fmt.Sprintf("%s:%s:started", resqueWorkerKey, redisWorker.info))
+		pipe.Del(fmt.Sprintf("%s:%s:shutdown", resqueWorkerKey, redisWorker.info))
+		pipe.Del(fmt.Sprintf("%s:%s", statProcessedKey, redisWorker.info))
+		pipe.Del(fmt.Sprintf("%s:%s", statFailedKey, redisWorker.info))
+		return nil
+	})
+
+	return nil
+}
+
+func removeFailedResqueJob(redisClient *redis.Client, redisWorker redisWorker) error {
+	if err := retryDeadWorker(redisClient, []byte(redisWorker.info)); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Unable to retry %s", redisWorker.info))
+	}
+
+	redisClient.Pipelined(func(pipe *redis.Pipeline) error {
+		pipe.LRem(resqueFailedQueueKey, 1, redisWorker.info)
 		return nil
 	})
 
