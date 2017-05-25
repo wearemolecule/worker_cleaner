@@ -11,10 +11,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"github.com/wearemolecule/worker_cleaner/pkg/kubeconfig"
+	"github.com/wearemolecule/worker_cleaner/kubernetes"
 	"gopkg.in/redis.v4"
-	kube_util "k8s.io/contrib/cluster-autoscaler/utils/kubernetes"
-	kube_client "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
 const (
@@ -30,28 +28,25 @@ const (
 var (
 	blacklistedResqueQueues []string
 	namespace               string
-	podRoleSelector         string
-	podAppSelector          string
-	kube                    string
+	labelSelector           string
+	kubeConfig              string
 )
 
 func init() {
 	flag.Parse()
 	blacklistedResqueQueues = strings.Split(os.Getenv("BLACKLISTED_QUEUES"), ",")
 	namespace = os.Getenv("NAMESPACE")
-	podRoleSelector = os.Getenv("POD_ROLE")
-	podAppSelector = os.Getenv("POD_APP")
-	kube = os.Getenv("KUBE")
+	labelSelector = os.Getenv("LABEL_SELECTOR")
+	kubeConfig = os.Getenv("KUBE_CONFIG")
 }
 
 func main() {
 	glog.V(0).Info("Kubernetes-Resque Worker Cleanup Service")
 
-	kubeClient, err := getKubernetesClient()
+	kubeClient, err := kubernetes.NewClient(kubeConfig)
 	if err != nil {
 		glog.Fatal(errors.Wrap(err, "Unable to create kubernetes client").Error())
 	}
-	podLister := kube_util.NewScheduledPodLister(kubeClient)
 	redisClient := getRedisClient()
 
 	ticker := time.NewTicker(time.Minute * 5)
@@ -60,7 +55,7 @@ func main() {
 	for _ = range ticker.C {
 		glog.V(1).Infof("starting cleanup at %v...", time.Now())
 
-		kubernetesWorkers, err := getWorkersFromKubernetes(podLister)
+		kubernetesWorkers, err := getWorkersFromKubernetes(kubeClient)
 		if err != nil {
 			glog.Warning(errors.Wrap(err, "Unable to get workers from kubernetes").Error())
 			continue
@@ -108,29 +103,15 @@ func main() {
 	}
 }
 
-func getKubernetesClient() (*kube_client.Client, error) {
-	certsPath := os.Getenv("CERTS_PATH")
-	serviceHost := os.Getenv("KUBERNETES_SERVICE_HOST")
-	servicePort := os.Getenv("KUBERNETES_SERVICE_PORT")
-	config, err := kubeconfig.NewKubernetesConfig(certsPath, serviceHost, servicePort)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to create kubernetes config")
-	}
-
-	return kube_client.New(config)
-}
-
-func getWorkersFromKubernetes(podLister *kube_util.ScheduledPodLister) ([]string, error) {
-	pods, err := podLister.List()
+func getWorkersFromKubernetes(kubeClient *kubernetes.Client) ([]string, error) {
+	podList, err := kubeClient.ListPods(namespace, labelSelector)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Unable to list pods")
 	}
 
 	var podNames []string
-	for _, pod := range pods {
-		if pod.Labels["role"] == podRoleSelector && pod.Labels["app"] == podAppSelector && pod.Namespace == namespace {
-			podNames = append(podNames, pod.Name)
-		}
+	for _, pod := range podList.Items {
+		podNames = append(podNames, pod.Name)
 	}
 
 	return podNames, nil
@@ -288,7 +269,7 @@ type resqueJob struct {
 }
 
 func getRedisClient() *redis.Client {
-	if kube == "true" {
+	if kubeConfig == "" {
 		addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_SENTINEL_SERVICE_HOST"), os.Getenv("REDIS_SENTINEL_SERVICE_PORT"))
 		return redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:    "mymaster",
