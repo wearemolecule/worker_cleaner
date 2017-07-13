@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -164,7 +165,7 @@ func getDirtyExitFailedJobsFromRedis(redisClient *redis.Client) ([]redisWorker, 
 			continue
 		}
 
-		if job.Exception == "Resque::DirtyExit" {
+		if regexp.MustCompile(`^Resque::.*DirtyExit`).MatchString(job.Exception) {
 			failedResqueJobs = append(failedResqueJobs, redisWorker{failedJob, failedJob})
 		}
 	}
