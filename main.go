@@ -271,10 +271,9 @@ type resqueJob struct {
 
 func getRedisClient() *redis.Client {
 	if kubeConfig == "" {
-		addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_SENTINEL_SERVICE_HOST"), os.Getenv("REDIS_SENTINEL_SERVICE_PORT"))
-		return redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:    "mymaster",
-			SentinelAddrs: []string{addr},
+		addr := fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT"))
+		return redis.NewClient(&redis.Options{
+			Addr: addr,
 		})
 	} else {
 		return redis.NewClient(&redis.Options{
