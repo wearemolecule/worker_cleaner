@@ -11,6 +11,6 @@ RUN make setup
 RUN make build
 
 RUN mkdir -p /opt/
-COPY worker_cleaner /opt/worker_cleaner
+COPY /go/src/github.com/wearemolecule/worker_cleaner /opt/worker_cleaner
 
 ENTRYPOINT ["/opt/worker_cleaner", "-logtostderr=true", "-v=0"]
