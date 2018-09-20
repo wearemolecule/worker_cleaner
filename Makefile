@@ -8,7 +8,7 @@ all: image
 	docker push $(IMAGE_TAG)
 
 setup:
-	glide install
+	glide install -v
 
 build:
 	$(GO) build -a -installsuffix cgo -o $(BIN) .
